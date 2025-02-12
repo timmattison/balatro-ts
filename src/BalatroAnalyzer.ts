@@ -1,7 +1,7 @@
 import { Card } from "./enum/cards/Card";
 import { Type } from "./enum/cards/CardType";
 import { Deck } from "./enum/Deck";
-import { Edition, EditionItem } from "./enum/Edition";
+import { Edition } from "./enum/Edition";
 import { PackKind } from "./enum/packs/PackKind";
 import { Stake } from "./enum/Stake";
 import { Version } from "./enum/Version";
@@ -14,7 +14,6 @@ import { AbstractCard } from "./struct/AbstractCard";
 import { CardNameBuilder } from "./struct/CardNameBuilder";
 import { InstanceParams } from "./struct/InstanceParams";
 import { JokerData } from "./struct/JokerData";
-import { JokerStickers } from "./struct/JokerStickers";
 import { Option } from "./struct/Option";
 
 export class BalatroAnalyzer {
@@ -116,7 +115,6 @@ export class BalatroAnalyzer {
     version: Version;
     configurations: Configurations;
 
-
     constructor(ante: number, cardsPerAnte: number[], deck: Deck, stake: Stake, version: Version, configurations: Configurations) {
         // this.seed = seed;
         this.ante = ante;
@@ -127,132 +125,136 @@ export class BalatroAnalyzer {
         this.configurations = configurations;
     }
 
-    performAnalysis({ seed, ante, cardsPerAnte, deck, stake, version }: AnalysisParams) {
-        const selectedOptions: boolean[] = new Array(61).fill(true);
-
-        const game = new Game(seed, new InstanceParams(deck, stake, false, version.getVersion()));
-        game.initLocks(1, false, false);
-
-        game.firstLock();
-
-        for (let i = 0; i < BalatroAnalyzer.OPTIONS.length; i++) {
-            if (!selectedOptions[i]) game.lock(BalatroAnalyzer.OPTIONS[i]);
+    performAnalysis({ seed, ante, cardsPerAnte, deck, stake, version }: AnalysisParams): Run {
+        if (ante > cardsPerAnte.length) {
+            throw new Error(`cardsPerAnte array does not have enough elements for ante ${ante}`);
         }
 
+        const selectedOptions: boolean[] = new Array(BalatroAnalyzer.OPTIONS.length).fill(true);
+        const game = new Game(seed, new InstanceParams(deck, stake, false, version.getVersion()));
+        game.initLocks(1, false, false);
+        game.firstLock();
+
+        this.lockOptions(game, selectedOptions);
         game.setDeck(deck);
 
         const run = new Run(seed);
 
         for (let a = 1; a <= ante; a++) {
-            game.initUnlocks(a, false);
-            // console.log(`Ante ${a}:`);
-            // console.log(` Boss: ${game.nextBoss(a).getName()}`);
-
-            //voucher
-            const voucher = game.nextVoucher(a).getName();
-            // console.log(` Voucher ${voucher}`)
-
-            game.lock(voucher);
-
-            for (let i = 0; i < Game.VOUCHERS.length; i += 2) {
-                if (Game.VOUCHERS[i].getName() === voucher) {
-                    if (selectedOptions[BalatroAnalyzer.OPTIONS.indexOf(Game.VOUCHERS[i + 1].getName())]) {
-                        game.unlock(Game.VOUCHERS[i + 1].getName());
-                    }
-                }
-            }
-
-            // console.log(` tags: ${game.nextTag(a).getName()}, ${game.nextTag(a).getName()}`);
-
-            for (let i = 0; i < cardsPerAnte[a - 1]; i++) {
-                const shopItem = game.nextShopItem(a);
-                let sticker: Edition | null = null;
-                if (shopItem.type === Type.JOKER) {
-                    run.addJoker(shopItem.jokerData.joker.getName());
-                    if (shopItem.jokerData.stickers.eternal) sticker = Edition.ETERNAL;
-                    if (shopItem.jokerData.stickers.perishable) sticker = Edition.PERISHABLE;
-                    if (shopItem.jokerData.stickers.rental) sticker = Edition.RENTAL;
-                    if (shopItem.jokerData.edition !== Edition.NO_EDITION) sticker = shopItem.jokerData.edition;
-                }
-
-                // console.log(` Card ${i + 1}: ${shopItem.item.getName()} ${sticker ? `(${new EditionItem(sticker).getName()})` : ""}`);
-            }
-
-            const numPacks = a === 1 ? 4 : 6;
-
-            for (let p = 1; p <= numPacks; p++) {
-                const pack = game.nextPack(a);
-                const packInfo = game.packInfo(pack);
-                const options = new Set<Option>();
-
-                let cards;
-                switch (packInfo.getKind()) {
-                    case PackKind.CELESTIAL:
-                        cards = game.nextCelestialPack(packInfo.getSize(), a);
-                        break;
-                    case PackKind.ARCANA:
-                        cards = game.nextArcanaPack(packInfo.getSize(), a);
-                        break;
-                    case PackKind.SPECTRAL:
-                        cards = game.nextSpectralPack(packInfo.getSize(), a);
-                        break;
-                    case PackKind.BUFFOON:
-                        cards = game.nextBuffoonPack(packInfo.getSize(), a);
-                        break;
-                    case PackKind.STANDARD:
-                        cards = game.nextStandardPack(packInfo.getSize(), a);
-                        break;
-
-                }
-
-                for (let c = 0; c < packInfo.getSize(); c++) {
-                    if (packInfo.getKind() == PackKind.BUFFOON) {
-                        const joker: JokerData = cards[c] as JokerData;
-                        const sticker = BalatroAnalyzer.getSticker(joker as JokerData);
-                        run.addJoker(joker.joker.getName());
-                        options.add(new Option(joker.joker, new ItemImpl(sticker)));
-                        continue;
-                    } else if (packInfo.getKind() == PackKind.STANDARD) {
-                        const card: Card = cards[c] as Card;
-                        const cardName = new CardNameBuilder(card).build();
-                        options.add(new Option(new AbstractCard(cardName), new ItemImpl(Edition.NO_EDITION)));
-                        continue;
-                    }
-
-                    if ((cards[c] as ItemImpl).getName() === "The Soul") {
-                        run.hasTheSoul = true;
-                    }
-                    options.add(new Option(cards[c] as ItemImpl, new ItemImpl(Edition.NO_EDITION)));
-                }
-
-                // console.log(` Pack ${p}: ${packInfo.getKind()}`);
-                // console.log(`  Options:`);
-                // for (const option of options) {
-
-                //     console.log(`-   ${option.name.getName()}`);
-                // }
-            }
+            this.processAnte(game, run, a, cardsPerAnte[a - 1], selectedOptions);
         }
+
         return run;
     }
 
-    private static getSticker(joker: JokerData): string {
-        let sticker: string | null = null;
+    private lockOptions(game: Game, selectedOptions: boolean[]): void {
+        for (let i = 0; i < BalatroAnalyzer.OPTIONS.length; i++) {
+            if (!selectedOptions[i]) {
+                game.lock(BalatroAnalyzer.OPTIONS[i]);
+            }
+        }
+    }
 
-        if (joker.stickers.eternal) {
-            sticker = Edition.ETERNAL;
-        }
-        if (joker.stickers.perishable) {
-            sticker = Edition.PERISHABLE;
-        }
-        if (joker.stickers.rental) {
-            sticker = Edition.RENTAL;
+    private processAnte(game: Game, run: Run, ante: number, cardsCount: number, selectedOptions: boolean[]): void {
+        game.initUnlocks(ante, false);
+
+        const voucher = game.nextVoucher(ante).getName();
+        game.lock(voucher);
+
+        this.unlockVouchers(game, voucher, selectedOptions);
+
+        if (this.configurations.analyzeShopQueue) {
+            for (let i = 0; i < cardsCount; i++) {
+                this.processShopItem(game, run, ante);
+            }
         }
 
-        if (joker.edition !== Edition.NO_EDITION) {
-            sticker = joker.edition;
+        const numPacks = ante === 1 ? 4 : 6;
+        for (let p = 1; p <= numPacks; p++) {
+            this.processPack(game, run, ante, p);
+        }
+    }
+
+    private unlockVouchers(game: Game, voucher: string, selectedOptions: boolean[]): void {
+        for (let i = 0; i < Game.VOUCHERS.length; i += 2) {
+            if (Game.VOUCHERS[i].getName() === voucher) {
+                if (selectedOptions[BalatroAnalyzer.OPTIONS.indexOf(Game.VOUCHERS[i + 1].getName())]) {
+                    game.unlock(Game.VOUCHERS[i + 1].getName());
+                }
+            }
+        }
+    }
+
+    private processShopItem(game: Game, run: Run, ante: number): void {
+        const shopItem = game.nextShopItem(ante);
+        let sticker: Edition | null = null;
+
+        if (shopItem.type === Type.JOKER) {
+            run.addJoker(shopItem.jokerData.joker.getName());
+            sticker = BalatroAnalyzer.getSticker(shopItem.jokerData);
         }
 
-        return sticker || Edition.NO_EDITION;
+        // console.log(` Card ${i + 1}: ${shopItem.item.getName()} ${sticker ? `(${new EditionItem(sticker).getName()})` : ""}`);
+    }
+
+    private processPack(game: Game, run: Run, ante: number, packNumber: number): void {
+        const pack = game.nextPack(ante);
+        const packInfo = game.packInfo(pack);
+        const options = new Set<Option>();
+
+        let cards;
+        switch (packInfo.getKind()) {
+            case PackKind.CELESTIAL:
+                cards = game.nextCelestialPack(packInfo.getSize(), ante);
+                break;
+            case PackKind.ARCANA:
+                cards = game.nextArcanaPack(packInfo.getSize(), ante);
+                break;
+            case PackKind.SPECTRAL:
+                cards = game.nextSpectralPack(packInfo.getSize(), ante);
+                break;
+            case PackKind.BUFFOON:
+                cards = game.nextBuffoonPack(packInfo.getSize(), ante);
+                break;
+            case PackKind.STANDARD:
+                cards = game.nextStandardPack(packInfo.getSize(), ante);
+                break;
+        }
+
+        for (let c = 0; c < packInfo.getSize(); c++) {
+            this.processCard(run, packInfo, cards[c], options);
+        }
+
+        // console.log(` Pack ${packNumber}: ${packInfo.getKind()}`);
+        // console.log(`  Options:`);
+        // for (const option of options) {
+        //     console.log(`-   ${option.name.getName()}`);
+        // }
+    }
+
+    private processCard(run: Run, packInfo: any, card: any, options: Set<Option>): void {
+        if (packInfo.getKind() === PackKind.BUFFOON) {
+            const joker: JokerData = card as JokerData;
+            const sticker = BalatroAnalyzer.getSticker(joker);
+            run.addJoker(joker.joker.getName());
+            options.add(new Option(joker.joker, new ItemImpl(sticker)));
+        } else if (packInfo.getKind() === PackKind.STANDARD) {
+            const cardObj: Card = card as Card;
+            const cardName = new CardNameBuilder(cardObj).build();
+            options.add(new Option(new AbstractCard(cardName), new ItemImpl(Edition.NO_EDITION)));
+        } else {
+            if ((card as ItemImpl).getName() === "The Soul") {
+                run.hasTheSoul = true;
+            }
+            options.add(new Option(card as ItemImpl, new ItemImpl(Edition.NO_EDITION)));
+        }
+    }
+
+    private static getSticker(joker: JokerData): Edition {
+        if (joker.stickers.eternal) return Edition.ETERNAL;
+        if (joker.stickers.perishable) return Edition.PERISHABLE;
+        if (joker.stickers.rental) return Edition.RENTAL;
+        if (joker.edition !== Edition.NO_EDITION) return joker.edition;
+        return Edition.NO_EDITION;
     }
 }

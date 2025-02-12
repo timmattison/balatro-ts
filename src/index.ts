@@ -15,13 +15,13 @@ const generateRandomSeed = (length = 7) => {
 // const seed = "SYRULAU" /*  generateRandomSeed() */;
 const analyzer = new BalatroAnalyzer(
     // seed,
-    8,
+    1,
     [13], new Deck(DeckType.RED_DECK), new Stake(StakeType.BLACK_STAKE), Version.v_101c, {
     analyzeArcana: true,
     analyzeBoss: true,
     analyzeCelestialPacks: true,
     analyzeJokers: true,
-    analyzeShopQueue: true,
+    analyzeShopQueue: false,
     analyzeSpectral: true,
     analyzeStandardPacks: true,
     analyzeTags: true,
@@ -48,9 +48,9 @@ function performAnalysisAsync(seed: string, ante: number, cardsPerAnte: number[]
 }
 
 function runAnalysis() {
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i < 20000; i++) {
         const seed = generateRandomSeed();
-        performAnalysisAsync(seed, 8, [15, 50, 50, 50, 50, 50, 50, 50], new Deck(DeckType.RED_DECK), new Stake(StakeType.BLACK_STAKE), Version.v_101c);
+        performAnalysisAsync(seed, 1, [15, 50, 50, 50, 50, 50, 50, 50], new Deck(DeckType.RED_DECK), new Stake(StakeType.BLACK_STAKE), Version.v_101c);
     }
 
     console.timeEnd('analysis');
