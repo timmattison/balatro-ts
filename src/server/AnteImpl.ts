@@ -67,8 +67,8 @@ export class AnteImpl implements Ante {
     }
 
     addToQueue(value: ShopItem, sticker: Edition): void {
-        this.shop.add(value.getItem().getName());
-        this.shopQueue.push(new SearchableItem(value.getItem(), sticker));
+        this.shop.add(value.item.getName());
+        this.shopQueue.push(new SearchableItem(value.item, sticker));
     }
 
     setBoss(boss: Boss): void {

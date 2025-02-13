@@ -50,7 +50,19 @@ function performAnalysisAsync(seed: string, ante: number, cardsPerAnte: number[]
 function runAnalysis() {
     for (let i = 0; i < 20000; i++) {
         const seed = generateRandomSeed();
-        performAnalysisAsync(seed, 1, [15, 50, 50, 50, 50, 50, 50, 50], new Deck(DeckType.RED_DECK), new Stake(StakeType.BLACK_STAKE), Version.v_101c);
+        const run = analyzer.performAnalysis({
+            seed,
+            ante: 1,
+            cardsPerAnte: [15, 50, 50, 50, 50, 50, 50, 50],
+            deck: new Deck(DeckType.RED_DECK),
+            stake: new Stake(StakeType.BLACK_STAKE),
+            version:  Version.v_101c
+        });
+        processedSeeds++;
+        if (run.hasTheSoul) {
+            foundSeeds.push(run.getSeed());
+        }
+        // performAnalysisAsync(seed, 1, [15, 50, 50, 50, 50, 50, 50, 50], new Deck(DeckType.RED_DECK), new Stake(StakeType.BLACK_STAKE), Version.v_101c);
     }
 
     console.timeEnd('analysis');
