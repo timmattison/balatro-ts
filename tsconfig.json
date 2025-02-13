@@ -2,9 +2,10 @@
     // ...
     "compilerOptions": {
         // ...
+        "baseUrl": "./src",
         "target": "ES2024",
         "lib": ["ES2024", "DOM"],
-        "module": "commonjs",
+        "module": "ESNext",
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
