@@ -7,7 +7,10 @@
   "license": "MIT",
   "private": false,
   "scripts": {
-    "start": "ts-node src/index.ts"
+    "start": "ts-node src/index.ts",
+    "serve": "bun run ./src/server/index.ts",
+    "client-dev": "cd src/client && yarn dev",
+    "app-dev": "yarn serve & yarn client-dev"
   },
   "devDependencies": {
     "@types/bun": "^1.2.2",

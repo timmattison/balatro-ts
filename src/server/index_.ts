@@ -69,6 +69,6 @@ function runAnalysis() {
     console.log('found seeds', foundSeeds);
 }
 
-// runAnalysis();
+runAnalysis();
 
 export { };
