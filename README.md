@@ -1,7 +1,5 @@
 # balatro-ts
 
-to run this code:
-- yarn install
-- yarn app-dev
+The original-implementation-test branch has code that can run a seed on the command-line.
 
-
+All Golang conversions have failed.
